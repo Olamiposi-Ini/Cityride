@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: cityride-backend
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install --include=dev && npm run deploy:build
+    startCommand: npm run deploy:start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.13.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cityride-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false
+      - key: ADMIN_BOOTSTRAP_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: MATCHING_RADIUS_KM
+        value: "5"
+
+databases:
+  - name: cityride-postgres
+    region: frankfurt
+    plan: free
+    databaseName: cityride
+    user: cityride

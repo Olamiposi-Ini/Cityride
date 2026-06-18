@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  RIDER
+  DRIVER
+  ADMIN
+}
+
+enum RideStatus {
+  SEARCHING
+  DRIVER_ASSIGNED
+  DRIVER_EN_ROUTE
+  DRIVER_ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+enum CallStatus {
+  CALLING
+  RINGING
+  CONNECTED
+  ENDED
+  MISSED
+}
+
+enum VehicleType {
+  CAB
+  BUS
+  KEKE
+}
+
+model User {
+  id           String        @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String        @unique
+  phone        String        @unique
+  passwordHash String
+  emailVerifiedAt DateTime?
+  emailVerificationCodeHash String?
+  emailVerificationExpiresAt DateTime?
+  role         UserRole
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  driver       DriverProfile?
+  riderRides   Ride[]        @relation("RiderRides")
+  driverRides  Ride[]        @relation("DriverRides")
+  messages     ChatMessage[]
+  callSessions CallSession[]
+}
+
+model DriverProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  vehicleType     VehicleType?
+  plateNumber     String?
+  isAvailable     Boolean  @default(false)
+  lastLatitude    Float?
+  lastLongitude   Float?
+  lastLocationAt  DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isAvailable])
+}
+
+model Ride {
+  id                     String        @id @default(cuid())
+  riderId                String
+  driverId               String?
+  pickupLatitude         Float
+  pickupLongitude        Float
+  destinationLatitude    Float
+  destinationLongitude   Float
+  pickupLabel            String?
+  destinationLabel       String?
+  status                 RideStatus    @default(SEARCHING)
+  fareEstimate           Int
+  distanceKm             Float
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  acceptedAt             DateTime?
+  startedAt              DateTime?
+  completedAt            DateTime?
+  cancelledAt            DateTime?
+  rider                  User          @relation("RiderRides", fields: [riderId], references: [id], onDelete: Cascade)
+  driver                 User?         @relation("DriverRides", fields: [driverId], references: [id], onDelete: SetNull)
+  messages               ChatMessage[]
+  calls                  CallSession[]
+
+  @@index([riderId, status])
+  @@index([driverId, status])
+  @@index([status, createdAt])
+}
+
+model ChatMessage {
+  id        String        @id @default(cuid())
+  rideId    String
+  senderId  String
+  message   String
+  status    MessageStatus @default(SENT)
+  createdAt DateTime      @default(now())
+  ride      Ride          @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  sender    User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([rideId, createdAt])
+}
+
+model CallSession {
+  id          String     @id @default(cuid())
+  rideId      String
+  initiatorId String
+  status      CallStatus @default(CALLING)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  endedAt     DateTime?
+  ride        Ride       @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  initiator   User       @relation(fields: [initiatorId], references: [id], onDelete: Cascade)
+
+  @@index([rideId, createdAt])
+}
